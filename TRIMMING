@@ -1,0 +1,48 @@
+### =================================
+### Script for EULER
+### Trim_Galore! trimming
+### Date: 16.01.18
+### =================================
+
+#!/bin/bash
+
+### -----------------------------------------------------------
+### User Setting
+### -----------------------------------------------------------
+
+### Modules
+module load gcc/4.8.2 gdc perl/5.18.4 python/2.7.11 java/1.8.0_73 fastqc/0.11.4 trim_galore/0.4.5
+
+### Working directory
+WD="/cluster/scratch/mwyler/wgbs/"
+
+### Scratch
+
+
+### -----------------------------------------------------------
+### Prepare Run
+### -----------------------------------------------------------
+
+## go to working directory
+cd ${WD}
+
+## time stamp
+date "+START: %m/%d/%y: %H:%M:%S"
+
+## Create name sample list
+ls -1 ${WD}untrimmed/*_R1* |\
+ sed 's/_R1_001_MM_1.fastq.gz//g' |\
+ grep "Undetermined" -v | awk -F"_" '{print $6"_"$7}' > ${WD}/nomiTrimming.txt
+
+## Loop over filenames using array job index
+IDX=`awk -v jindex=$LSB_JOBINDEX 'NR==jindex' ${WD}/nomiTrimming.txt`
+
+
+
+### -----------------------------------------------------------
+### Run Trim_galore!
+### -----------------------------------------------------------
+
+trim_galore --paired -fastqc --output_dir trimmed untrimmed/*${IDX}_*.gz untrimmed/*${IDX}_*.gz
+
+

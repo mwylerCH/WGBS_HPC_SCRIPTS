@@ -1,0 +1,87 @@
+### =================================
+### Script for EULER
+### Bismark Bisulfite Mapper
+### Date: 16.01.18
+### =================================
+
+## Info: Where can I find help?
+## https://rawgit.com/FelixKrueger/Bismark/master/Docs/Bismark_User_Guide.html
+
+### -----------------------------------------------------------
+### Run Parameter
+### -----------------------------------------------------------
+
+#!/bin/bash
+#BSUB -J "bismark[1-36]%6"  ## There are 36 files in total an 6 jobs will run in parallele
+#BSUB -n 8                  ## Number of CPUs per running job !!!
+#BSUB -R "rusage[mem=2048]" ## Memory per CPU * jobs (e.g. 6 * 4 * 2048)
+#BSUB -W 08:00              ## Estimated working time 
+#BSUB -o bismark_log.%J.%I  ## Log file
+#BSUB -e bismark_err.%J.%I  ## Error file
+
+### -----------------------------------------------------------
+### User Setting
+### -----------------------------------------------------------
+
+### Modules
+module load gcc/4.8.2 gdc perl/5.18.4 bowtie2/2.3.2 samtools/1.3 bismark/0.19.0
+bismark -version
+
+### Working directory
+WD="/cluster/scratch/mwyler/wgbs/"
+
+### -----------------------------------------------------------
+### Pre-Setting
+### -----------------------------------------------------------
+
+## Prepare (Index) genome for mapping (only needed once)
+#  bismark_genome_preparation --bowtie2 GENOME/
+
+### -----------------------------------------------------------
+### Prepare Run
+### -----------------------------------------------------------
+
+## go to working directory
+cd ${WD}
+
+## time stamp
+date "+START: %m/%d/%y: %H:%M:%S"
+
+## make directory with genome if not already present
+
+[ -d ${WD}/GENOME ] || mkdir ${WD}/GENOME
+
+## copy reference to scratch if not already done
+
+DIR="${WD}/GENOME"
+
+if [ "$(ls -A $DIR)" ]; then
+     echo "Take action $DIR is not Empty"
+else
+    echo "$DIR is Empty"
+    cp /cluster/project/gdc/shared/p423/r_ref/Bdistachyon_314_v3.0.fa GENOME/
+fi
+
+## Create name sample list
+
+#ls -1 ${WD}/trimmed/*_R1_*fq.gz |\
+# sed 's/_R1_001_MM_1_val_1.fq.gz//g' |\
+# grep "Undetermined" -v | awk -F"_" '{print $6"_"$7}' > ${WD}/nomiMapping.txt
+
+## Loop over filenames using array job index
+IDX=`awk -v jindex=$LSB_JOBINDEX 'NR==jindex' ${WD}/nomiMapping.txt`
+echo ${IDX} # file name
+
+### -----------------------------------------------------------
+### Run BISMARK
+### -----------------------------------------------------------
+
+bismark --multicore 8 --unmapped --bowtie2 \
+  ${WD}/GENOME/ \
+  --output_dir ${WD}/mapped \
+  -1 ${WD}/trimmed/*${IDX}*_R1_*.fq.gz \
+  -2 ${WD}/trimmed/*${IDX}*_R2_*.fq.gz \
+
+date "+END: %m/%d/%y: %H:%M:%S"
+
+
